@@ -4,6 +4,14 @@ using Microsoft.Xna.Framework.Input;
 using System.Collections.Generic;
 using System.Linq;
 
+
+/* TODOS
+ * Get Adjacent Cells Based On Position
+ * Isolated Death Cycle
+ * Overpopulated Death Cycle
+ * Growth Cycle
+*/
+
 namespace GameOfLife
 {
     /// <summary>
