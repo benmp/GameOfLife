@@ -1,8 +1,11 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Timers;
 
 
 /* TODOS
@@ -21,6 +24,7 @@ namespace GameOfLife
     {
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
+        TimeSpan updateTimer;
 
         public List<Cell> cells;
 
@@ -43,6 +47,9 @@ namespace GameOfLife
             Texture2D image = Content.Load<Texture2D>("Images/redsquare");
             CreateBoard(cells, image);
 
+            IsFixedTimeStep = true;
+            TargetElapsedTime = TimeSpan.FromSeconds(1.0 / 60);
+
             base.Initialize();
         }
 
@@ -53,7 +60,7 @@ namespace GameOfLife
                 for (int w = 0; w < graphics.GraphicsDevice.Viewport.Height; w+=10)
                 {
                     Cell cell = new Cell();
-                    cell.Initialize(graphics.GraphicsDevice, texture2D, h, w, StaticRandom.Rand() % 5 == 0 ? true : false);
+                    cell.Initialize(graphics.GraphicsDevice, texture2D, h, w, StaticRandom.Rand() % 2 == 0 ? true : false);
                     cells.Add(cell);
                 }
             }
@@ -92,6 +99,22 @@ namespace GameOfLife
 
             // TODO: Add your update logic here
 
+            updateTimer += gameTime.ElapsedGameTime;
+
+            if (updateTimer.TotalMilliseconds > 1000f / 1)
+            {
+                updateTimer = TimeSpan.Zero;
+                foreach (Cell cell in cells)
+                {
+                    cell.SimulateCellLifeCycle(cells);
+                }
+
+                foreach (Cell cell in cells)
+                {
+                    cell.ApplyNextState();
+                }
+            }
+
             base.Update(gameTime);
         }
 
@@ -121,23 +144,122 @@ namespace GameOfLife
         public Texture2D Texture2D;
         public Vector2 Position;
         public bool IsAlive;
+        public List<Cell> AdjacentCells;
+        public bool NextState;
 
         public void Initialize(GraphicsDevice graphicsDevice, Texture2D texture2D, float positionX, float positionY, bool isAlive)
         {
             IsAlive = isAlive;
+            NextState = isAlive;
             Texture2D = texture2D; //new Texture2D(graphicsDevice, (int)size, (int)size);
             SetColor(texture2D.Height);
 
             Position = new Vector2(positionX, positionY);
+            AdjacentCells = new List<Cell>();
         }
 
         public void SetColor(int size)
         {
             Color[] colorData = new Color[size * size];
             for (int i = 0; i < size*size; i++)
-                colorData[i] = Color.Red;
+                colorData[i] = Color.Black;
 
             Texture2D.SetData(colorData);
+        }
+
+        private void GetAdjacentCells(List<Cell> cells)
+        {
+            if (AdjacentCells.Count != 0)
+            {
+                return;
+            }
+
+            Cell adjacentCell = cells.FirstOrDefault(c => c.Position.X == -10 + Position.X && c.Position.Y == -10 + Position.Y); //Top Left
+            if (adjacentCell != null)
+            {
+                AdjacentCells.Add(adjacentCell);
+            }
+            adjacentCell = cells.FirstOrDefault(c => c.Position.X == Position.X && c.Position.Y == -10 + Position.Y ); //Top Middle
+            if (adjacentCell != null)
+            {
+                AdjacentCells.Add(adjacentCell);
+            }
+            adjacentCell = cells.FirstOrDefault(c => c.Position.X == 10 + Position.X && c.Position.Y == -10 + Position.Y ); //Top Right
+            if (adjacentCell != null)
+            {
+                AdjacentCells.Add(adjacentCell);
+            }
+            adjacentCell = cells.FirstOrDefault(c => c.Position.X == 10 + Position.X && c.Position.Y == Position.Y ); //Right
+            if (adjacentCell != null)
+            {
+                AdjacentCells.Add(adjacentCell);
+            }
+            adjacentCell = cells.FirstOrDefault(c => c.Position.X == 10 + Position.X && c.Position.Y == 10 + Position.Y ); //Bottom Right
+            if (adjacentCell != null)
+            {
+                AdjacentCells.Add(adjacentCell);
+            }
+            adjacentCell = cells.FirstOrDefault(c => c.Position.X == Position.X && c.Position.Y == 10 + Position.Y ); //Bottom
+            if (adjacentCell != null)
+            {
+                AdjacentCells.Add(adjacentCell);
+            }
+            adjacentCell = cells.FirstOrDefault(c => c.Position.X == -10 + Position.X && c.Position.Y == 10 + Position.Y ); //Bottom Left
+            if (adjacentCell != null)
+            {
+                AdjacentCells.Add(adjacentCell);
+            }
+            adjacentCell = cells.FirstOrDefault(c => c.Position.X == -10 + Position.X && c.Position.Y == Position.Y ); //Left
+            if (adjacentCell != null)
+            {
+                AdjacentCells.Add(adjacentCell);
+            }
+        }
+
+        public void SimulateCellLifeCycle(List<Cell> cells)
+        {
+            GetAdjacentCells(cells);
+            int count = GetAliveAdjacentCells();
+            CheckUnderpopulatedCell(count);
+            CheckOverpopulatedCell(count);
+            CheckReproducedCell(count);
+        }
+
+        private int GetAliveAdjacentCells()
+        {
+            return AdjacentCells.Count(c => c.IsAlive);
+        }
+
+        private void CheckUnderpopulatedCell(int count)
+        {
+            if (IsAlive && count < 2)
+            {
+                NextState = false;
+            }
+        }
+
+        private void CheckOverpopulatedCell(int count)
+        {
+            if (IsAlive && count > 3)
+            {
+                NextState = false;
+            }
+        }
+
+        private void CheckReproducedCell(int count)
+        {
+            if (!IsAlive && count == 3)
+            {
+                NextState = true;
+            }
+        }
+
+        public void ApplyNextState()
+        {
+            if (NextState != IsAlive)
+            {
+                IsAlive = NextState;
+            }
         }
     }
 }
